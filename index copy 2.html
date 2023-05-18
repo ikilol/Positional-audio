@@ -1,0 +1,251 @@
+<html lang="en">
+<head>
+    <title>Positional Audio</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #c {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            z-index: 2;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        #overlay button {
+            background: #ffffff;
+            border: 0;
+            color: #000000;
+            padding: 16px 20px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        #info {
+            position: absolute;
+            top: 0px;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+            z-index: 1; /* TODO Solve this in HTML */
+            color: #9effff;
+        }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+    <button id="startButton">Play</button>
+</div>
+<script type="module">
+	import * as THREE from "https://threejsfundamentals.org/threejs/resources/threejs/r122/build/three.module.js";
+	import { FirstPersonControls } from 'https://cdn.jsdelivr.net/npm/three@v0.108.0/examples/jsm/controls/FirstPersonControls.js';
+	import { OrbitControls } from '//cdn.skypack.dev/three@0.130.1/examples/jsm/controls/OrbitControls.js'
+	import { RGBELoader } from '//cdn.skypack.dev/three@0.130.1/examples/jsm/loaders/RGBELoader.js'
+
+
+	const startButton = document.getElementById( 'startButton' );
+	startButton.addEventListener( 'click', init );
+
+	function init() {
+
+		document.getElementById( "overlay" ).remove();
+
+		const controlFirstPerson = true;
+
+		const canvas = document.getElementById( "c" );
+		let renderer = new THREE.WebGLRenderer( { canvas } );
+		renderer.tonemapping = THREE.ACESFilmicToneMapping;
+		renderer.tonemappingExposure = 0.6;
+
+		const clock = new THREE.Clock();
+
+		let scene = new THREE.Scene();
+		scene.background = new THREE.Color( 0xABCDEF );
+
+		const fov = 45;
+		const aspect = window.innerWidth / window.innerHeight;
+		const far = 700;
+		const near = 10;
+		let camera = new THREE.PerspectiveCamera( fov, aspect, far, near );
+		camera.position.y = 15;
+
+		// WebGL renderer
+		const renderer2 = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+		renderer2.toneMapping = THREE.ACESFilmicToneMapping
+		renderer2.outputEncoding = THREE.sRGBEncoding
+		renderer2.setSize(window.innerWidth, window.innerHeight)
+		document.body.appendChild(renderer.domElement)
+
+		const audioLoader = new THREE.AudioLoader();
+
+		const listener = new THREE.AudioListener();
+		camera.add( listener );
+
+		//const soundList = [ "resources/song1.mp3", "resources/song2.mp3"];
+		//const videoList = [ "resources/runner1.mp4", "resources/runner2.mp4"];
+
+		const soundList = [ "resources/song1.mp3"];
+		const videoList = [ "resources/runner1.mp4"];
+
+		for (let i = 0; i < ( soundList.length > 2 ? 2 : soundList.length ); i ++) {
+
+			let videoScreen = new THREE.Object3D();
+
+			let video = document.createElement( 'video' );
+			video.src = videoList[i];
+			video.load();
+			video.muted = true;
+			video.loop = true;
+
+			const positionalAudio = new THREE.PositionalAudio( listener );
+			audioLoader.load( soundList[i], function ( buffer ) {
+
+				positionalAudio.setBuffer( buffer );
+				positionalAudio.setRefDistance( 20 );
+				positionalAudio.loop = true;
+				positionalAudio.play();
+				positionalAudio.setDirectionalCone( 360, 180, 0.1 );
+				positionalAudio.position.y = 2;
+				positionalAudio.position.z = 30;
+
+				video.play();
+			} );
+
+			let videoTexture = new THREE.VideoTexture( video );
+			videoTexture.minFilter = THREE.LinearFilter;
+			videoTexture.magFilter = THREE.LinearFilter;
+			videoTexture.format = THREE.RGBFormat;
+
+			let planeMesh = new THREE.Mesh(
+				new THREE.PlaneGeometry( 1, 1, 2, 2 ),
+				new THREE.MeshBasicMaterial( { map: videoTexture, side: THREE.DoubleSide } )
+			);
+
+			videoScreen.add( planeMesh );
+			videoScreen.add( positionalAudio );
+
+			if (i > 1) {
+				if (i % 2) {
+					videoScreen.rotation.y = - 0 * Math.PI / 180;
+					videoScreen.position.z = - 250;
+				} else {
+					videoScreen.rotation.y = 90 * Math.PI / 180;
+					videoScreen.position.x = - 250;
+				}
+			} else {
+				if (i % 2) {
+					videoScreen.rotation.y = 180 * Math.PI / 180;
+					videoScreen.position.z = 250;
+				} else {
+					videoScreen.rotation.y = - 90 * Math.PI / 180;
+					videoScreen.position.x = 250;
+				}
+			}
+
+			video.onloadeddata = function () {
+				const aspectRatio = video.videoWidth / video.videoHeight;
+				planeMesh.scale.set( 30 * aspectRatio, 30, 1 );
+				planeMesh.position.y = 15;
+			};
+
+			scene.add( videoScreen );
+
+			const hdrUrl = 'bg.hdr'
+			new RGBELoader().load(hdrUrl, texture => {
+			const gen = new THREE.PMREMGenerator(renderer)
+			const envMap = gen.fromEquirectangular(texture).texture
+			scene.environment = envMap
+			scene.background = envMap
+  
+  texture.dispose()
+  gen.dispose()
+})
+		}
+
+		let gridHelper = new THREE.GridHelper( 1500, 20 );
+		scene.add( gridHelper );
+
+		let controls = null;
+
+		if (controlFirstPerson) {
+			controls = new FirstPersonControls( camera, renderer.domElement );
+			controls.movementSpeed = 100;
+			controls.lookSpeed = 0.1;
+			controls.lookVertical = false;
+		} else {
+			controls = new OrbitControls( camera, renderer.domElement );
+			controls.target.set( 0, 0, 0 );
+			controls.update();
+			controls.minDistance = 1;
+			controls.maxDistance = 700;
+			controls.maxPolarAngle = 0.5 * Math.PI;
+		}
+
+		function resizeRendererToDisplaySize( renderer ) {
+			const canvas = renderer.domElement;
+			const pixelRatio = window.devicePixelRatio;
+			const width = canvas.clientWidth * pixelRatio | 0;
+			const height = canvas.clientHeight * pixelRatio | 0;
+			const needResize = canvas.width !== width || canvas.height !== height;
+			if (needResize) {
+
+				renderer.setSize( width, height, false );
+
+			}
+
+			return needResize;
+
+		}
+
+		function render( time ) {
+			const delta = clock.getDelta();
+
+			if (controlFirstPerson) {
+				controls.update( delta );
+			}
+
+			if (resizeRendererToDisplaySize( renderer )) {
+				const canvas = renderer.domElement;
+				camera.aspect = canvas.clientWidth / canvas.clientHeight;
+				camera.updateProjectionMatrix();
+
+				if (controlFirstPerson) {
+					controls.handleResize();
+				}
+			}
+
+			renderer.render( scene, camera );
+
+			requestAnimationFrame( render );
+		}
+
+		requestAnimationFrame( render );
+
+		renderer2.render(scene, camera)
+
+	}
+</script>
+</body>
+</html>

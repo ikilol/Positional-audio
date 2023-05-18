@@ -1,0 +1,120 @@
+<html lang="en">
+<head>
+    <title>Positional Audio</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #c {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            z-index: 2;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        #overlay button {
+            background: #ffffff;
+            border: 0;
+            color: #000000;
+            padding: 16px 20px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        #info {
+            position: absolute;
+            top: 0px;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+            z-index: 1; /* TODO Solve this in HTML */
+            color: #9effff;
+        }
+    </style>
+</head>
+<body>
+<script type="module">
+	import * as THREE from '//cdn.skypack.dev/three@0.130.1'
+	import { OrbitControls } from '//cdn.skypack.dev/three@0.130.1/examples/jsm/controls/OrbitControls.js'
+	import { RGBELoader } from '//cdn.skypack.dev/three@0.130.1/examples/jsm/loaders/RGBELoader.js'
+
+// WebGL renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.outputEncoding = THREE.sRGBEncoding
+renderer.setSize(window.innerWidth, window.innerHeight)
+document.body.appendChild(renderer.domElement)
+
+// Scene, Camera
+const scene = new THREE.Scene()
+
+const hdrUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/abandoned_greenhouse_1k.hdr'
+new RGBELoader().load(hdrUrl, texture => {
+  const gen = new THREE.PMREMGenerator(renderer)
+  const envMap = gen.fromEquirectangular(texture).texture
+  scene.environment = envMap
+  scene.background = envMap
+  
+  texture.dispose()
+  gen.dispose()
+})
+
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+)
+camera.position.set(0, 0, 3)
+
+
+// OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement)
+
+// Mesh
+const geometry = new THREE.IcosahedronGeometry()
+const material = new THREE.MeshStandardMaterial()
+const mesh = new THREE.Mesh(geometry, material)
+scene.add(mesh)
+
+// Render loop
+function animate() {
+  requestAnimationFrame(animate)
+  controls.update()
+  renderer.render(scene, camera)
+}
+animate()
+
+// Window sizing
+window.addEventListener('resize', onWindowResize, false)
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+</script>
+</body>
+</html>
