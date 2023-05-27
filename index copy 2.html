@@ -48,7 +48,7 @@
             -ms-user-select: none;
             user-select: none;
             pointer-events: none;
-            z-index: 1; /* TODO Solve this in HTML */
+            z-index: 1;
             color: #9effff;
         }
     </style>
@@ -90,6 +90,7 @@
 		const near = 10;
 		let camera = new THREE.PerspectiveCamera( fov, aspect, far, near );
 		camera.position.y = 15;
+		camera.position.x = 0;
 
 		// WebGL renderer
 		const renderer2 = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -125,10 +126,12 @@
 				positionalAudio.setBuffer( buffer );
 				positionalAudio.setRefDistance( 20 );
 				positionalAudio.loop = true;
-				positionalAudio.play();
 				positionalAudio.setDirectionalCone( 360, 180, 0.1 );
 				positionalAudio.position.y = 2;
 				positionalAudio.position.z = 30;
+
+				positionalAudio.play();
+
 
 				video.play();
 			} );
